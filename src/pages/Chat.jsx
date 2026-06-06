@@ -5,6 +5,7 @@ export default function Chat({ user }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
 
+  // Load + realtime listener
   useEffect(() => {
     loadMessages();
 
@@ -15,7 +16,7 @@ export default function Chat({ user }) {
         {
           event: "INSERT",
           schema: "public",
-          table: "messages"
+          table: "messages",
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
@@ -23,16 +24,18 @@ export default function Chat({ user }) {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadMessages = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("messages")
       .select("*")
       .order("id", { ascending: true });
 
-    setMessages(data || []);
+    if (!error) setMessages(data || []);
   };
 
   const sendMessage = async () => {
@@ -41,8 +44,8 @@ export default function Chat({ user }) {
     await supabase.from("messages").insert([
       {
         sender: user,
-        text
-      }
+        text: text.trim(),
+      },
     ]);
 
     setText("");
@@ -52,7 +55,7 @@ export default function Chat({ user }) {
     <div className="container">
       <div className="card">
 
-        <h1>💬 Live Chat</h1>
+        <h1>💬 Cherry Chat 🍒</h1>
 
         <div className="chat-box">
           {messages.map((m) => (
@@ -67,6 +70,7 @@ export default function Chat({ user }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Message Cherry 🍒..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
 
         <button onClick={sendMessage}>
