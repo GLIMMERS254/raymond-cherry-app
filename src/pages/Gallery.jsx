@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../supabase";
 
 export default function Gallery({ user }) {
   const [file, setFile] = useState(null);
@@ -6,12 +7,33 @@ export default function Gallery({ user }) {
   const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem("photos");
-    if (saved) setPhotos(JSON.parse(saved));
+    loadPhotos();
+
+    const channel = supabase
+      .channel("gallery-room")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "photos"
+        },
+        (payload) => {
+          setPhotos((prev) => [payload.new, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, []);
 
-  const savePhotos = (data) => {
-    localStorage.setItem("photos", JSON.stringify(data));
+  const loadPhotos = async () => {
+    const { data } = await supabase
+      .from("photos")
+      .select("*")
+      .order("id", { ascending: false });
+
+    setPhotos(data || []);
   };
 
   const toBase64 = (file) =>
@@ -26,17 +48,13 @@ export default function Gallery({ user }) {
 
     const image = await toBase64(file);
 
-    const newPhoto = {
-      id: Date.now(),
-      user,
-      desc,
-      image
-    };
-
-    const updated = [newPhoto, ...photos];
-
-    setPhotos(updated);
-    savePhotos(updated);
+    await supabase.from("photos").insert([
+      {
+        sender: user,
+        image,
+        description: desc
+      }
+    ]);
 
     setFile(null);
     setDesc("");
@@ -46,7 +64,7 @@ export default function Gallery({ user }) {
     <div className="container">
       <div className="card">
 
-        <h1>📸 Gallery</h1>
+        <h1>📸 Shared Gallery</h1>
 
         <input
           type="file"
@@ -68,8 +86,8 @@ export default function Gallery({ user }) {
           {photos.map((p) => (
             <div key={p.id} className="photo-card">
               <img src={p.image} />
-              <p><strong>{p.user}</strong></p>
-              <p>{p.desc}</p>
+              <p><strong>{p.sender}</strong></p>
+              <p>{p.description}</p>
             </div>
           ))}
         </div>
