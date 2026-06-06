@@ -5,7 +5,6 @@ export default function Chat({ user }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
 
-  // Load + realtime listener
   useEffect(() => {
     loadMessages();
 
@@ -24,9 +23,7 @@ export default function Chat({ user }) {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const loadMessages = async () => {
@@ -35,18 +32,22 @@ export default function Chat({ user }) {
       .select("*")
       .order("id", { ascending: true });
 
-    if (!error) setMessages(data || []);
+    if (!error) setMessages(data);
   };
 
   const sendMessage = async () => {
     if (!text.trim()) return;
 
-    await supabase.from("messages").insert([
+    const { error } = await supabase.from("messages").insert([
       {
         sender: user,
         text: text.trim(),
       },
     ]);
+
+    if (error) {
+      console.log("SEND ERROR:", error);
+    }
 
     setText("");
   };
