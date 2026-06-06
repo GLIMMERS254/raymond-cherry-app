@@ -1,45 +1,40 @@
 import { useEffect, useState } from "react";
-import { db } from "../firebase/firebase";
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp
-} from "firebase/firestore";
 
 export default function Chat({ user }) {
   const [text, setText] = useState("");
   const [messages, setMessages] = useState([]);
 
+  // Load messages once when page opens
   useEffect(() => {
-    const q = query(
-      collection(db, "messages"),
-      orderBy("time", "asc")
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      setMessages(data);
-    });
-
-    return () => unsub();
+    try {
+      const saved = localStorage.getItem("messages");
+      if (saved) {
+        setMessages(JSON.parse(saved));
+      }
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+      setMessages([]);
+    }
   }, []);
 
-  const sendMessage = async () => {
+  // Save messages to browser
+  const saveMessages = (data) => {
+    localStorage.setItem("messages", JSON.stringify(data));
+  };
+
+  const sendMessage = () => {
     if (!text.trim()) return;
 
-    await addDoc(collection(db, "messages"), {
-      text,
-      user,
-      time: serverTimestamp()
-    });
+    const newMessage = {
+      id: Date.now(),
+      user: user || "Unknown",
+      text: text.trim()
+    };
 
+    const updatedMessages = [...messages, newMessage];
+
+    setMessages(updatedMessages);
+    saveMessages(updatedMessages);
     setText("");
   };
 
@@ -47,20 +42,32 @@ export default function Chat({ user }) {
     <div className="container">
       <div className="card">
 
-        <h1>💬 Chat (Live)</h1>
+        <h1>💬 Chat</h1>
 
+        {/* Messages */}
         <div className="chat-box">
-          {messages.map((m) => (
-            <div key={m.id} className="msg">
-              <strong>{m.user}:</strong> {m.text}
-            </div>
-          ))}
+          {messages.length === 0 ? (
+            <p style={{ color: "#777" }}>
+              No messages yet 💜 Start chatting with Cherry 🍒
+            </p>
+          ) : (
+            messages.map((m) => (
+              <div key={m.id} className="msg">
+                <strong>{m.user}: </strong>
+                {m.text}
+              </div>
+            ))
+          )}
         </div>
 
+        {/* Input */}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Message Cherry 🍒..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter") sendMessage();
+          }}
         />
 
         <button onClick={sendMessage}>

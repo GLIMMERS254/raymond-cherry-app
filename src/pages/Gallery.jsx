@@ -1,13 +1,4 @@
-import { useEffect, useState } from "react";
-import { db } from "../firebase/firebase";
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  serverTimestamp
-} from "firebase/firestore";
+import { useState, useEffect } from "react";
 
 export default function Gallery({ user }) {
   const [file, setFile] = useState(null);
@@ -15,27 +6,19 @@ export default function Gallery({ user }) {
   const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
-    const q = query(collection(db, "photos"), orderBy("time"));
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      setPhotos(
-        snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
-    });
-
-    return () => unsub();
+    const saved = localStorage.getItem("photos");
+    if (saved) setPhotos(JSON.parse(saved));
   }, []);
 
-  // Convert file → base64 (FREE method, no storage needed)
+  const savePhotos = (data) => {
+    localStorage.setItem("photos", JSON.stringify(data));
+  };
+
   const toBase64 = (file) =>
-    new Promise((resolve, reject) => {
+    new Promise((resolve) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
     });
 
   const upload = async () => {
@@ -43,12 +26,17 @@ export default function Gallery({ user }) {
 
     const image = await toBase64(file);
 
-    await addDoc(collection(db, "photos"), {
-      image,
-      desc,
+    const newPhoto = {
+      id: Date.now(),
       user,
-      time: serverTimestamp()
-    });
+      desc,
+      image
+    };
+
+    const updated = [newPhoto, ...photos];
+
+    setPhotos(updated);
+    savePhotos(updated);
 
     setFile(null);
     setDesc("");
@@ -73,7 +61,7 @@ export default function Gallery({ user }) {
         />
 
         <button onClick={upload}>
-          Upload Memory 💖
+          Upload 💜
         </button>
 
         <div className="gallery-grid">
