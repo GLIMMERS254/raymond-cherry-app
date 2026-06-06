@@ -16,16 +16,16 @@ export default function Chat({ user }) {
   useEffect(() => {
     const q = query(
       collection(db, "messages"),
-      orderBy("time")
+      orderBy("time", "asc")
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
-      setMessages(
-        snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      setMessages(data);
     });
 
     return () => unsub();
@@ -47,13 +47,12 @@ export default function Chat({ user }) {
     <div className="container">
       <div className="card">
 
-        <h1>💬 Chat Room</h1>
+        <h1>💬 Chat (Live)</h1>
 
         <div className="chat-box">
           {messages.map((m) => (
             <div key={m.id} className="msg">
-              <strong>{m.user}: </strong>
-              {m.text}
+              <strong>{m.user}:</strong> {m.text}
             </div>
           ))}
         </div>
